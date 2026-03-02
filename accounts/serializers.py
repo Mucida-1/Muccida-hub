@@ -54,3 +54,27 @@ class CadastroSerializer(serializers.ModelSerializer):
             print(f"ALERTA CRÍTICO: Plano ID {PLANO_BASICO_ID} ausente! Visto não gerado para {user.email}")
 
         return user
+    
+    
+class PerfilUsuarioSerializer(serializers.ModelSerializer):
+    nome = serializers.CharField(source='first_name')
+    
+    class Meta:
+        model = CustomUser
+        fields = ['nome', 'telefone']
+
+
+class MudarSenhaSerializer(serializers.Serializer):
+    atual = serializers.CharField(required=True)
+    nova = serializers.CharField(required=True)
+    # Não precisamos da 'confirmacao' aqui porque o Front-end já bloqueia se não for igual,
+    # e o Django vai ignorar os campos extras enviados pelo Vue.
+
+    def validate_atual(self, value):
+        # Pega o usuário que está fazendo a requisição
+        user = self.context['request'].user
+        
+        # O check_password do Django compara o texto limpo com o hash do banco
+        if not user.check_password(value):
+            raise serializers.ValidationError("A senha atual está incorreta.")
+        return value

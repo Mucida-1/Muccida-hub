@@ -49,11 +49,22 @@ class Plano(models.Model):
     produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name='planos')
     nome = models.CharField(max_length=100)
     preco_mensal = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
+    preco_anual = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     limite_creditos_ia = models.IntegerField(default=0, help_text="Quantos Raio-X a IA pode fazer por mês")
-    limite_cnaes = models.IntegerField(default=1)
+    limite_cnaes = models.IntegerField(default=3)
+    limite_cnpjs = models.IntegerField(default=1)
+    descricao = models.CharField(max_length=255, blank=True, null=True)
+    destaque = models.BooleanField('É o plano recomendado?', default=False)
+    cta = models.CharField('Texto do Botão', max_length=50, default='Assinar Agora')
+    ordem = models.IntegerField('Ordem de Exibição', default=0, help_text="0 para o primeiro da esquerda, 1 para o do meio, etc.")
+    recursos = models.JSONField('Lista de Recursos', default=list, blank=True)
+    
+    class Meta:
+        ordering = ['ordem', 'preco_mensal']
 
     def __str__(self):
         return f"{self.produto.nome} - {self.nome}"
+    
     
 # 5. O Motor de Cupons
 class CupomDesconto(models.Model):
@@ -80,14 +91,49 @@ class Assinatura(models.Model):
     data_inicio = models.DateTimeField(auto_now_add=True)
     data_renovacao = models.DateTimeField(blank=True, null=True)
     gateway_subscription_id = models.CharField('ID da Assinatura no Gateway', max_length=255, blank=True, null=True)
-    forma_pagamento = models.CharField(
-        max_length=50, 
-        choices=[('cartao', 'Cartão de Crédito'), ('pix', 'PIX'), ('boleto', 'Boleto')],
-        blank=True, 
-        null=True
-    )
+    forma_pagamento = models.CharField(max_length=50, choices=[('cartao', 'Cartão de Crédito'), ('pix', 'PIX'), ('boleto', 'Boleto')],blank=True, null=True)
+    ciclo = models.CharField(max_length=10, choices=[('mensal', 'Mensal'),('anual', 'Anual'),], default='mensal')
     cupom = models.ForeignKey(CupomDesconto, on_delete=models.SET_NULL, null=True, blank=True, help_text="Cupom utilizado nesta assinatura")
     is_cortesia = models.BooleanField('Conta VIP / Cortesia', default=False, help_text="Se marcado, o sistema não exige pagamento e mantém a conta ativa.")
 
     def __str__(self):
         return f"{self.utilizador.email} | {self.plano.nome} ({self.status})"
+
+
+class Fatura(models.Model):
+    STATUS_CHOICES = [
+        ('pendente', 'Pendente'),
+        ('pago', 'Pago'),
+        ('atrasado', 'Atrasado'),
+        ('cancelado', 'Cancelado'),
+        ('falhou', 'Falhou') # Útil para quando o cartão recusa
+    ]
+
+    assinatura = models.ForeignKey(Assinatura, on_delete=models.CASCADE, related_name='faturas')
+    
+    # Identificadores do Gateway (Stripe/Asaas) para os Webhooks
+    gateway_invoice_id = models.CharField('ID da Fatura no Gateway', max_length=255, blank=True, null=True, unique=True)
+    
+    # Financeiro
+    valor = models.DecimalField('Valor Cobrado', max_digits=10, decimal_places=2, help_text="Valor final já com descontos")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pendente')
+    
+    # Descritivo do método usado nesta cobrança específica (Ex: 'PIX', 'Cartão final 4242')
+    metodo_pagamento = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Datas
+    data_criacao = models.DateTimeField(auto_now_add=True)
+    data_vencimento = models.DateField()
+    data_pagamento = models.DateTimeField(null=True, blank=True)
+    
+    # Links Úteis (Para o cliente baixar no Vue)
+    link_pagamento = models.URLField('Link do Checkout/Boleto', max_length=500, blank=True, null=True)
+    link_nota_fiscal = models.URLField('Link da NF-e', max_length=500, blank=True, null=True)
+
+    class Meta:
+        ordering = ['-data_criacao'] # Garante que a fatura mais nova apareça primeiro na tabela
+        verbose_name = 'Fatura'
+        verbose_name_plural = 'Faturas'
+
+    def __str__(self):
+        return f"Fatura {self.id} | {self.assinatura.utilizador.first_name} | R$ {self.valor} ({self.status})"
