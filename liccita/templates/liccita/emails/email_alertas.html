@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novos Editais - LicitaFácil</title>
+    <style>
+        /* CSS Clássico e seguro para clientes de e-mail */
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; color: #334155; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; margin-top: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .header { background-color: #0f172a; padding: 30px 20px; text-align: center; }
+        .header h1 { color: #ffffff; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+        .header span { color: #06b6d4; }
+        .content { padding: 30px 20px; }
+        .greeting { font-size: 18px; font-weight: 600; color: #0f172a; margin-bottom: 10px; }
+        .intro { font-size: 15px; line-height: 1.6; margin-bottom: 30px; color: #475569; }
+        .highlight { color: #06b6d4; font-weight: bold; }
+        
+        /* O Card de cada Edital */
+        .edital-card { background-color: #f1f5f9; border-left: 4px solid #06b6d4; border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+        .orgao { font-size: 14px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 8px 0; }
+        .objeto { font-size: 16px; font-weight: 600; color: #0f172a; margin: 0 0 12px 0; line-height: 1.4; }
+        .detalhes { font-size: 14px; color: #475569; margin: 0 0 15px 0; display: flex; justify-content: space-between; }
+        .valor { font-weight: bold; color: #10b981; font-size: 16px;}
+        
+        /* Botões */
+        .btn { display: inline-block; background-color: #06b6d4; color: #ffffff; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; font-size: 14px; text-align: center; }
+        .btn-center { display: block; width: 200px; margin: 30px auto 10px auto; text-align: center; }
+        
+        /* Footer */
+        .footer { background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Licita<span>Fácil</span></h1>
+        </div>
+        
+        <div class="content">
+            <p class="greeting">Olá, {{ nome_usuario }}! 👋</p>
+            <p class="intro">A nossa Inteligência Artificial acabou de varrer os diários oficiais e encontrou <span class="highlight">{{ quantidade }} nova(s) oportunidade(s)</span> com alto índice de compatibilidade com o seu CNPJ.</p>
+            
+            {% for edital in editais %}
+            <div class="edital-card">
+                <p class="orgao">{{ edital.orgao }} {% if edital.local_uf %}- {{ edital.local_uf }}{% endif %}</p>
+                <p class="objeto">{{ edital.titulo|truncatechars:120 }}</p>
+                
+                <p class="detalhes">
+                    <span>Abertura: <strong>{{ edital.data_abertura|date:"d/m/Y" | default:"A definir" }}</strong></span>
+                    <br>
+                    <span>Valor Estimado: <span class="valor">R$ {{ edital.valor_estimado|default:"Não informado" }}</span></span>
+                </p>
+                
+                <a href="https://app.licitafacil.com.br/editais" class="btn">Analisar Edital com IA</a>
+            </div>
+            {% empty %}
+            <p>Nenhuma licitação encontrada hoje. O robô continuará buscando!</p>
+            {% endfor %}
+            
+            <a href="https://app.licitafacil.com.br" class="btn btn-center">Acessar Meu Painel</a>
+        </div>
+        
+        <div class="footer">
+            <p>Você está recebendo este e-mail porque configurou um Alerta de Alto Match no LicitaFácil.</p>
+            <p>&copy; 2026 LicitaFácil SaaS. Todos os direitos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>

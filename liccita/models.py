@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from accounts.models import CustomUser
 import uuid
     
@@ -125,6 +126,7 @@ class Licitacao(models.Model):
     local_uf = models.CharField(max_length=2, blank=True, null=True, db_index=True)
     modo_disputa = models.CharField(max_length=100, blank=True, null=True, db_index=True)
     srp = models.BooleanField(null=True, blank=True)
+    favoritos = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='editais_salvos', blank=True)
 
     class Meta:
         db_table = '"liccita"."licitacao"'
@@ -150,3 +152,55 @@ class Licitacao(models.Model):
             }, sort_keys=True)
             self.fingerprint = hashlib.sha256(raw_data.encode("utf-8")).hexdigest()
         super().save(*args, **kwargs)
+        
+        
+class RaioXPersonalizado(models.Model):
+    licitacao = models.ForeignKey(Licitacao, on_delete=models.CASCADE, related_name='raiox_gerados')
+    utilizador = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    relatorio_markdown = models.TextField('Relatório da IA')
+    data_geracao = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = '"liccita"."raiox_personalizado"'
+        unique_together = ('licitacao', 'utilizador') 
+
+    def __str__(self):
+        return f"Raio-X de {self.utilizador.email} para {self.licitacao.orgao}"
+    
+
+class AlertaLicitacao(models.Model):
+    FREQUENCIA_CHOICES = [
+        ('diaria', 'Diária'),
+        ('semanal', 'Semanal')
+    ]
+    CANAL_CHOICES = [
+        ('email', 'E-mail'),
+        ('whatsapp', 'WhatsApp')
+    ]
+
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='alertas')
+    nome = models.CharField(max_length=100, help_text="Ex: Licitações de Software")
+    ufs = models.CharField(max_length=100, blank=True, null=True, help_text="Ex: SP, MG, DF (vazio = Brasil todo)")
+    valor_minimo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    frequencia = models.CharField(max_length=20, choices=FREQUENCIA_CHOICES, default='diaria')
+    canal = models.CharField(max_length=20, choices=CANAL_CHOICES, default='email')
+    ativo = models.BooleanField(default=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    apenas_alto_match = models.BooleanField(default=False, help_text="Se True, a IA fará uma curadoria e enviará apenas editais com +80% de chance de vitória.")
+    
+    class Meta:
+        db_table = '"liccita"."alerta_licitacao"'
+
+    def __str__(self):
+        return f"{self.nome} - {self.usuario.email}"
+    
+
+class EditalEnviado(models.Model):
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    licitacao = models.ForeignKey(Licitacao, on_delete=models.CASCADE)
+    data_envio = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = '"liccita"."edital_enviado"'
+        # A trava de ouro: o banco de dados proíbe salvar o mesmo edital pro mesmo usuário
+        unique_together = ('usuario', 'licitacao')

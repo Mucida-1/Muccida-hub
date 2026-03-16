@@ -1,5 +1,3 @@
-
-
 def get_nested_value(d, path):
     if not path or not d: return None
     keys = path.split('.')
@@ -10,3 +8,4 @@ def get_nested_value(d, path):
         else:
             return None
     return val
+
